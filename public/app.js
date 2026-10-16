@@ -3,7 +3,7 @@ const BUY = 20, SEATS = 15;
 const $ = (id) => document.getElementById(id);
 const money = (n) => "$" + n.toLocaleString("en-US");
 const PAGE_BUILD = (document.querySelector('meta[name="build"]') || {}).content || null; // stamped in by the server
-const SCREENS =["scrLoading", "scrHome", "scrJoin", "scrTable", "scrOver"];
+const SCREENS = ["scrLoading", "scrHome", "scrCreate", "scrJoin", "scrTable", "scrOver"];
 const show = (id) => SCREENS.forEach((s) => ($(s).hidden = s !== id));
 
 /* ---------- this browser's secret token ---------- */
@@ -109,7 +109,7 @@ function pickView(force) {
 
   if (!force && r === role && c === code) { if (!code && !$("scrHome").hidden) renderResume(); return; }
   role = r; code = c; table = c ? tables[c] || null : null;
-  if (!code) { if ($("scrJoin").hidden) goHomeScreen(); return; }
+  if (!code) { if ($("scrJoin").hidden && $("scrCreate").hidden) goHomeScreen(); return; }
   if (table) return render();
   $("loadingMsg").textContent = "Opening table " + code + "…";
   show("scrLoading");
@@ -266,8 +266,8 @@ function render() {
 
   $("role").classList.toggle("host", isHost);
   $("roleText").textContent = (isHost ? "Host" : "Player") + " · live";
-  $("titleIn").hidden = !isHost; $("titleRo").hidden = isHost;
-  if (isHost && document.activeElement !== $("titleIn")) $("titleIn").value = table.name;
+  $("renameBtn").hidden = !isHost;
+  if (!isHost) closeRename();
   $("titleRo").textContent = table.name;
   $("codeShow").textContent = table.code;
 
@@ -318,13 +318,34 @@ async function bump(p, d) {
   if (r.error) toast(r.error);
 }
 
-async function createTable() {
-  $("homeErr").textContent = "";
-  $("createBtn").disabled = true;
-  const r = await request("create"); // if I already host an open table, this just takes me back to it
-  $("createBtn").disabled = false;
-  if (r.error) { $("homeErr").textContent = r.error; return; }
-  setView("host"); pickView();
+async function createTable(name) {
+  const onForm = !$("scrCreate").hidden;
+  const errEl = onForm ? $("createErr") : $("homeErr");
+  errEl.textContent = "";
+  $("createBtn").disabled = $("createGo").disabled = true;
+  const r = await request("create", { name }); // if I already host an open table, this just takes me back to it
+  $("createBtn").disabled = $("createGo").disabled = false;
+  if (r.error) { errEl.textContent = r.error; return; }
+  setView("host"); pickView(true);
+}
+
+// Step before creating: the host names the game (a dated suggestion is filled in).
+function openCreate() {
+  const d = new Date();
+  const date = `${String(d.getDate()).padStart(2, "0")}-${d.toLocaleString("en-US", { month: "short" })}-${d.getFullYear()}`;
+  const day = d.toLocaleString("en-US", { weekday: "long" });
+  const ideas = [`Poker Night ${date}`, `${day} Night Poker`, "Home Game", "High Rollers"];
+  $("gameNameIn").value = ideas[0];
+  const box = $("suggest"); box.textContent = "";
+  for (const idea of ideas) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = idea;
+    b.onclick = () => { $("gameNameIn").value = idea; $("gameNameIn").focus(); };
+    box.append(b);
+  }
+  $("createErr").textContent = $("homeErr").textContent = "";
+  show("scrCreate");
+  $("gameNameIn").focus(); $("gameNameIn").select();
 }
 
 async function findTable(e) {
@@ -367,9 +388,16 @@ $("helpClose").onclick = () => ($("help").hidden = true);
 $("help").onclick = (e) => { if (e.target === $("help")) $("help").hidden = true; };
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("help").hidden = true; });
 
+$("createForm").onsubmit = (e) => {
+  e.preventDefault();
+  const name = $("gameNameIn").value.trim().replace(/\s+/g, " ").slice(0, 60);
+  if (!name) { $("createErr").textContent = "Give the game a name."; return; }
+  createTable(name);
+};
+$("createBack").onclick = goHomeScreen;
 $("tabPlay").onclick = () => setHomeTab("play");
 $("tabHistory").onclick = () => setHomeTab("history");
-$("createBtn").onclick = createTable;
+$("createBtn").onclick = () => { const h = sess.host && tables[sess.host]; if (h && !h.ended) createTable(); else openCreate(); };
 $("joinBtn").onclick = () => { resetJoin(); $("codeIn").value = ""; $("homeErr").textContent = ""; show("scrJoin"); $("codeIn").focus(); };
 $("joinBack").onclick = () => { if (!$("nameForm").hidden) resetJoin(); else goHomeScreen(); };
 $("tableHome").onclick = () => { setView("home"); pickView(); };
@@ -379,13 +407,24 @@ $("codeForm").onsubmit = findTable;
 $("nameForm").onsubmit = takeSeat;
 $("codeIn").oninput = (e) => (e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
 
-$("titleIn").onchange = async () => {
-  const name = $("titleIn").value.trim().slice(0, 60);
-  if (!name || !table || name === table.name) { $("titleIn").value = table ? table.name : ""; return; }
+// Host renames the game: pencil opens a small form in place of the title.
+function closeRename() { $("renameForm").hidden = true; $("titleRow").hidden = false; }
+$("renameBtn").onclick = () => {
+  if (!table) return;
+  $("titleIn").value = table.name;
+  $("titleRow").hidden = true; $("renameForm").hidden = false;
+  $("titleIn").focus(); $("titleIn").select();
+};
+$("renameCancel").onclick = closeRename;
+$("renameForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const name = $("titleIn").value.trim().replace(/\s+/g, " ").slice(0, 60);
+  if (!name || !table) return;
+  closeRename();
+  if (name === table.name) return;
   const r = await request("rename", { code, name });
   if (r.error) toast(r.error);
 };
-$("titleIn").onkeydown = (e) => { if (e.key === "Enter") e.target.blur(); };
 
 $("copyCode").onclick = async () => {
   try { await navigator.clipboard.writeText(code); $("copyCode").textContent = "Copied"; setTimeout(() => ($("copyCode").textContent = "Copy code"), 1500); }

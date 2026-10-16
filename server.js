@@ -180,7 +180,7 @@ const handlers = {
     const code = newCode();
     if (!code) return reply({ error: "Couldn't make a table code. Try again." });
     const now = Date.now();
-    state.tables[code] = { code, name: newTableName(), hostId: pid, createdAt: now, updatedAt: now, ended: false, players: {} };
+    state.tables[code] = { code, name: cleanName(msg.name, 60) || newTableName(), hostId: pid, createdAt: now, updatedAt: now, ended: false, players: {} };
     me.hostOf = code;
     save();
     syncPerson(pid); // session first, so the reply arrives after the browser knows its new table
