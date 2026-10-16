@@ -17,7 +17,14 @@ function getToken() {
 const TOKEN = getToken();
 
 let me = null, role = null, code = null, table = null;
+let sess = { host: null, player: null }; // the table I host and the one I sit at, from the server
+const tables = {};                        // latest state of each of those tables
 let joinTarget = null;
+
+// Which screen this tab shows: "host", "player" or "home". Kept per tab, so one
+// browser can host in one tab and sit at the table in another.
+function getView() { try { return sessionStorage.getItem("buyin-view"); } catch { return getView.mem || null; } }
+function setView(v) { getView.mem = v; try { v ? sessionStorage.setItem("buyin-view", v) : sessionStorage.removeItem("buyin-view"); } catch {} }
 
 /* ---------- connection ---------- */
 let ws = null, nextId = 1, retry = 0;
@@ -72,20 +79,48 @@ function ask(title, text, yes) {
 /* ---------- server events ---------- */
 function onSession(s) {
   me = s.you;
-  const changed = !onSession.seen || s.role !== role || s.code !== code;
+  sess = { host: s.host || null, player: s.player || null };
+  pickView(!onSession.seen);
   onSession.seen = true;
-  role = s.role; code = s.code;
-  if (!changed) return;
-  table = null;
-  if (!code) { if ($("scrJoin").hidden) show("scrHome"); return; }
+}
+
+function onTable(t) {
+  if (!t) return;
+  tables[t.code] = t;
+  if (t.code === code) { table = t; render(); }
+  if (!$("scrHome").hidden) renderResume();
+}
+
+// Decide what this tab shows from its own choice and what the server says I'm part of.
+function pickView(force) {
+  const v = getView();
+  let r = null, c = null;
+  if (v === "home") { /* stay home */ }
+  else if (v === "player" && sess.player) { r = "player"; c = sess.player; }
+  else if (v === "host" && sess.host) { r = "host"; c = sess.host; }
+  else if (sess.host) { r = "host"; c = sess.host; }
+  else if (sess.player) { r = "player"; c = sess.player; }
+
+  if (!force && r === role && c === code) { if (!code && !$("scrHome").hidden) renderResume(); return; }
+  role = r; code = c; table = c ? tables[c] || null : null;
+  if (!code) { if ($("scrJoin").hidden) goHomeScreen(); return; }
+  if (table) return render();
   $("loadingMsg").textContent = "Opening table " + code + "…";
   show("scrLoading");
 }
 
-function onTable(t) {
-  if (!t || t.code !== code) return;
-  table = t;
-  render();
+function goHomeScreen() { show("scrHome"); renderResume(); }
+
+// On the home screen, offer a way back to a game that's still going.
+function renderResume() {
+  const h = sess.host && tables[sess.host], p = sess.player && tables[sess.player];
+  const hostOpen = h && !h.ended, seatOpen = p && !p.ended;
+  $("resume").hidden = !hostOpen && !seatOpen;
+  $("resumeHost").hidden = !hostOpen;
+  $("resumeSeat").hidden = !seatOpen;
+  if (hostOpen) $("resumeHost").textContent = `Return to your table ${h.code}`;
+  if (seatOpen) $("resumeSeat").textContent = `Back to your seat at ${p.code}`;
+  $("createBtn").querySelector(".big").textContent = hostOpen ? "Your table" : "Create a table";
 }
 
 /* ---------- rendering ---------- */
@@ -186,9 +221,10 @@ async function bump(p, d) {
 async function createTable() {
   $("homeErr").textContent = "";
   $("createBtn").disabled = true;
-  const r = await request("create");
+  const r = await request("create"); // if I already host an open table, this just takes me back to it
   $("createBtn").disabled = false;
-  if (r.error) $("homeErr").textContent = r.error;
+  if (r.error) { $("homeErr").textContent = r.error; return; }
+  setView("host"); pickView();
 }
 
 async function findTable(e) {
@@ -213,10 +249,11 @@ async function takeSeat(e) {
   if (!name) { $("nameErr").textContent = "Enter the name the table should see."; return; }
   if (!joinTarget) return;
   $("nameGo").disabled = true;
-  $("scrJoin").hidden = true; // let the session update move us to the table
   const r = await request("join", { code: joinTarget, name });
   $("nameGo").disabled = false;
-  if (r.error) { show("scrJoin"); $("nameErr").textContent = r.error; }
+  if (r.error) { $("nameErr").textContent = r.error; return; }
+  $("scrJoin").hidden = true;
+  setView("player"); pickView(true);
 }
 
 function resetJoin() {
@@ -232,7 +269,10 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("help").
 
 $("createBtn").onclick = createTable;
 $("joinBtn").onclick = () => { resetJoin(); $("codeIn").value = ""; $("homeErr").textContent = ""; show("scrJoin"); $("codeIn").focus(); };
-$("joinBack").onclick = () => { if (!$("nameForm").hidden) resetJoin(); else show("scrHome"); };
+$("joinBack").onclick = () => { if (!$("nameForm").hidden) resetJoin(); else goHomeScreen(); };
+$("tableHome").onclick = () => { setView("home"); pickView(); };
+$("resumeHost").onclick = () => { setView("host"); pickView(); };
+$("resumeSeat").onclick = () => { setView("player"); pickView(); };
 $("codeForm").onsubmit = findTable;
 $("nameForm").onsubmit = takeSeat;
 $("codeIn").oninput = (e) => (e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
@@ -261,8 +301,10 @@ $("leaveBtn").onclick = async () => {
   if (r.error) toast(r.error);
 };
 $("overHome").onclick = async () => {
-  const r = await request("home");
+  setView("home");
+  const r = await request("home"); // forgets games that have ended
   if (r.error) toast(r.error);
+  pickView(true);
 };
 
 connect();

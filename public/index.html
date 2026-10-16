@@ -123,6 +123,10 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
 .chip-stack span { display: block; height: 10px; margin-top: -4px; border-radius: 50%; background: var(--c);
   border: 2px dashed rgba(255, 255, 255, 0.75); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); }
 
+.resume { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px; border-radius: 14px;
+  background: var(--rail); border: 1px dashed var(--chip); }
+.resume .row { justify-content: center; }
+
 /* big game buttons */
 .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .play { position: relative; display: flex; align-items: center; gap: 14px; text-align: left; padding: 18px; border-radius: 18px; cursor: pointer;
@@ -282,6 +286,14 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
       </div>
     </div>
 
+    <div class="resume" id="resume" hidden>
+      <span class="eyebrow">Game in progress</span>
+      <div class="row">
+        <button class="btn primary" id="resumeHost">Return to your table</button>
+        <button class="btn primary" id="resumeSeat">Back to your seat</button>
+      </div>
+    </div>
+
     <div class="choices">
       <button class="play create" id="createBtn">
         <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
@@ -360,7 +372,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
 
     <p class="foot" id="tableFoot"></p>
     <div class="bar">
-      <span></span>
+      <button class="btn" id="tableHome">← Home</button>
       <button class="btn danger" id="endBtn" hidden>End game</button>
       <button class="btn danger" id="leaveBtn" hidden>Leave game</button>
     </div>
@@ -391,6 +403,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
       <li>Players join from their own phones. They appear in the seats as they join (15 seats max).</li>
       <li>Tap <b>+ Add Buy-In</b> each time a player buys in. Each tap adds $20.</li>
       <li>Tapped by mistake? Tap <b>−</b> to take one buy-in back.</li>
+      <li>Playing too? Tap <b>← Home</b>, then <b>Join a table</b> with your own code. The game keeps running, and <b>Return to your table</b> on the home screen takes you back.</li>
       <li>When the night is over, tap <b>End game</b>. Everyone sees the final totals.</li>
     </ol>
     <h3>If you're playing</h3>

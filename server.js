@@ -95,30 +95,31 @@ function publicTable(t) {
 }
 
 /* ---------- sockets ---------- */
-const sockets = new Map(); // ws -> { pid, code }
+const sockets = new Map(); // ws -> { pid, codes }
 
 function send(ws, msg) {
   if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
 }
 
+// A person can host one table and sit at one table (their own included) at the same time.
+// Each browser tab picks which of the two it shows.
 function sessionFor(pid) {
   const p = state.people[pid] || {};
-  const hostT = p.hostOf && state.tables[p.hostOf];
-  const playT = p.playerAt && state.tables[p.playerAt];
-  if (hostT && !hostT.ended) return { role: "host", code: hostT.code };
-  if (playT) return { role: "player", code: playT.code };
-  if (hostT) return { role: "host", code: hostT.code }; // ended table: show the final totals
-  return { role: null, code: null };
+  return {
+    host: p.hostOf && state.tables[p.hostOf] ? p.hostOf : null,
+    player: p.playerAt && state.tables[p.playerAt] ? p.playerAt : null,
+  };
 }
 
-// Send each of this person's open tabs their session and table.
+// Send each of this person's open tabs their session and tables.
 function syncPerson(pid) {
   const s = sessionFor(pid);
+  const codes = [...new Set([s.host, s.player].filter(Boolean))];
   for (const [ws, info] of sockets) {
     if (info.pid !== pid) continue;
-    info.code = s.code;
-    send(ws, { type: "session", you: pid, role: s.role, code: s.code });
-    if (s.code) send(ws, { type: "table", table: publicTable(state.tables[s.code]) });
+    info.codes = codes;
+    send(ws, { type: "session", you: pid, host: s.host, player: s.player });
+    for (const c of codes) send(ws, { type: "table", table: publicTable(state.tables[c]) });
   }
 }
 
@@ -126,7 +127,7 @@ function broadcast(code) {
   const t = state.tables[code];
   if (!t) return;
   const msg = JSON.stringify({ type: "table", table: publicTable(t) });
-  for (const [ws, info] of sockets) if (info.code === code && ws.readyState === ws.OPEN) ws.send(msg);
+  for (const [ws, info] of sockets) if (info.codes.includes(code) && ws.readyState === ws.OPEN) ws.send(msg);
 }
 
 function touch(t) { t.updatedAt = Date.now(); save(); broadcast(t.code); }
@@ -144,18 +145,16 @@ const handlers = {
     const now = Date.now();
     state.tables[code] = { code, name: newTableName(), hostId: pid, createdAt: now, updatedAt: now, ended: false, players: {} };
     me.hostOf = code;
-    me.playerAt = null;
     save();
+    syncPerson(pid); // session first, so the reply arrives after the browser knows its new table
     reply({ ok: true });
-    syncPerson(pid);
   },
 
   lookup(pid, msg, reply) {
     const code = String(msg.code || "").toUpperCase();
     const t = state.tables[code];
     if (!t) return reply({ error: `No table with code ${code}. Check the code with your host.` });
-    if (t.ended) return reply({ error: "That game has already ended." });
-    if (t.hostId === pid) return reply({ error: "That's your own table. You're the host." });
+    if (t.ended) return reply({ error: "That game has already ended. Ask the host for the new code." });
     const taken = Object.values(t.players).filter((p) => p.seated).length;
     const mine = t.players[pid] && t.players[pid].seated;
     if (!mine && taken >= SEATS) return reply({ error: "That table is full. All 15 seats are taken." });
@@ -168,7 +167,6 @@ const handlers = {
     const t = state.tables[code];
     if (!name) return reply({ error: "Enter the name the table should see." });
     if (!t || t.ended) return reply({ error: "That table isn't open anymore." });
-    if (t.hostId === pid) return reply({ error: "That's your own table. You're the host." });
     const seatedCount = Object.values(t.players).filter((p) => p.seated).length;
     const existing = t.players[pid];
     if (!(existing && existing.seated) && seatedCount >= SEATS) return reply({ error: "That table is full. All 15 seats are taken." });
@@ -177,9 +175,9 @@ const handlers = {
     if (me.playerAt && me.playerAt !== code) leaveTable(pid, me.playerAt);
     t.players[pid] = { name, joinedAt: existing && existing.seated ? existing.joinedAt : Date.now(), seated: true, count: existing ? existing.count : 0 };
     me.playerAt = code;
-    reply({ ok: true });
     touch(t);
     syncPerson(pid);
+    reply({ ok: true });
   },
 
   buyin(pid, msg, reply) {
@@ -271,7 +269,7 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 4096 });
 
 wss.on("connection", (ws) => {
-  sockets.set(ws, { pid: null, code: null });
+  sockets.set(ws, { pid: null, codes: [] });
   let budget = 30; // simple flood guard: 30 messages, refilled 10 per second
   const refill = setInterval(() => (budget = Math.min(30, budget + 10)), 1000);
 
