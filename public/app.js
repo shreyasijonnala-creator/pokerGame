@@ -2,7 +2,8 @@
 const BUY = 20, SEATS = 15;
 const $ = (id) => document.getElementById(id);
 const money = (n) => "$" + n.toLocaleString("en-US");
-const SCREENS = ["scrLoading", "scrHome", "scrJoin", "scrTable", "scrOver"];
+const PAGE_BUILD = (document.querySelector('meta[name="build"]') || {}).content || null; // stamped in by the server
+const SCREENS =["scrLoading", "scrHome", "scrJoin", "scrTable", "scrOver"];
 const show = (id) => SCREENS.forEach((s) => ($(s).hidden = s !== id));
 
 /* ---------- this browser's secret token ---------- */
@@ -78,6 +79,11 @@ function ask(title, text, yes) {
 
 /* ---------- server events ---------- */
 function onSession(s) {
+  // the server has a different version of this page: load it instead of running old code against it
+  if (s.build && s.build !== PAGE_BUILD) {
+    let tried = null; try { tried = sessionStorage.getItem("buyin-reloaded"); sessionStorage.setItem("buyin-reloaded", s.build); } catch {}
+    if (tried !== s.build) { location.reload(); return; } // only once per version, so it can't loop
+  }
   me = s.you;
   sess = { host: s.host || null, player: s.player || null };
   pickView(!onSession.seen);

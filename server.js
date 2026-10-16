@@ -12,6 +12,11 @@ const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "tables.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
+// Fingerprint of the page files. Tabs still running an older page reload themselves when it changes.
+const BUILD = crypto.createHash("sha1")
+  .update(fs.readFileSync(path.join(PUBLIC_DIR, "index.html")))
+  .update(fs.readFileSync(path.join(PUBLIC_DIR, "app.js")))
+  .digest("hex").slice(0, 10);
 
 const BUY = 20;
 const SEATS = 15;
@@ -118,7 +123,7 @@ function syncPerson(pid) {
   for (const [ws, info] of sockets) {
     if (info.pid !== pid) continue;
     info.codes = codes;
-    send(ws, { type: "session", you: pid, host: s.host, player: s.player });
+    send(ws, { type: "session", you: pid, host: s.host, player: s.player, build: BUILD });
     for (const c of codes) send(ws, { type: "table", table: publicTable(state.tables[c]) });
   }
 }
@@ -137,7 +142,7 @@ const handlers = {
   create(pid, msg, reply) {
     const me = person(pid);
     const current = me.hostOf && state.tables[me.hostOf];
-    if (current && !current.ended) return reply({ ok: true });
+    if (current && !current.ended) { syncPerson(pid); return reply({ ok: true }); }
     if (Object.keys(state.tables).length >= MAX_TABLES) prune();
     if (Object.keys(state.tables).length >= MAX_TABLES) return reply({ error: "The site is full right now. Try again later." });
     const code = newCode();
@@ -261,6 +266,12 @@ const server = http.createServer((req, res) => {
   if (!file.startsWith(PUBLIC_DIR + path.sep)) { res.writeHead(403); return res.end(); }
   fs.readFile(file, (err, body) => {
     if (err) { res.writeHead(404); return res.end("Not found"); }
+    if (rel === "index.html") {
+      // stamp the page with its version, and make browsers fetch the matching script
+      body = body.toString()
+        .replace("</head>", `<meta name="build" content="${BUILD}">\n</head>`)
+        .replace('src="app.js"', `src="app.js?v=${BUILD}"`);
+    }
     res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream", "Cache-Control": "no-cache" });
     res.end(body);
   });
@@ -279,7 +290,13 @@ wss.on("connection", (ws) => {
     try { msg = JSON.parse(raw); } catch { return; }
     if (!msg || typeof msg !== "object") return;
     const info = sockets.get(ws);
-    const reply = (body) => send(ws, { type: "reply", id: msg.id, ...body });
+    const reply = (body) => {
+      if (msg.type !== "hello") {
+        const what = body.error ? `refused: ${body.error}` : "ok";
+        console.log(`${new Date().toISOString()} ${msg.type} by ${String(info.pid).slice(0, 6)}${msg.code ? " at " + String(msg.code).slice(0, 5) : ""}: ${what}`);
+      }
+      send(ws, { type: "reply", id: msg.id, ...body });
+    };
 
     if (msg.type === "hello") {
       const token = String(msg.token || "");
