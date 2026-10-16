@@ -1,0 +1,16 @@
+{
+  "name": "buyin-board",
+  "version": "1.0.0",
+  "description": "Live $20 buy-in tracker for home poker games",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "8.18.0"
+  }
+}
