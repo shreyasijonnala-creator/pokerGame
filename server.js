@@ -30,24 +30,56 @@ const TABLE_TTL_MS = 1000 * 60 * 60 * 24 * 30; // drop tables 30 days after thei
 // state.people[pid]  = { hostOf: code|null, playerAt: code|null }
 let state = { tables: {}, people: {} };
 
-function load() {
-  try {
-    const raw = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-    if (raw && typeof raw === "object") state = { tables: raw.tables || {}, people: raw.people || {} };
-  } catch (e) {
-    if (e.code !== "ENOENT") console.error("Could not read saved tables:", e.message);
+// With DATABASE_URL set, everything is kept in Postgres (one row holding the whole state), so it
+// survives restarts and redeploys on hosts that wipe their disk. Otherwise it's a local JSON file.
+const DATABASE_URL = process.env.DATABASE_URL || "";
+let pool = null;
+
+async function load() {
+  let raw = null;
+  if (DATABASE_URL) {
+    const { Pool } = require("pg");
+    pool = new Pool({ connectionString: DATABASE_URL, max: 3 });
+    await pool.query("CREATE TABLE IF NOT EXISTS buyin_state (id int PRIMARY KEY, data jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())");
+    const r = await pool.query("SELECT data FROM buyin_state WHERE id = 1");
+    raw = r.rows[0] ? r.rows[0].data : null;
+  } else {
+    try { raw = JSON.parse(fs.readFileSync(DATA_FILE, "utf8")); }
+    catch (e) { if (e.code !== "ENOENT") console.error("Could not read saved tables:", e.message); }
+  }
+  if (raw && typeof raw === "object") state = { tables: raw.tables || {}, people: raw.people || {} };
+}
+
+async function writeState() {
+  const json = JSON.stringify(state);
+  if (pool) {
+    await pool.query(
+      "INSERT INTO buyin_state (id, data, updated_at) VALUES (1, $1, now()) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()",
+      [json]);
+  } else {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    const tmp = DATA_FILE + ".tmp";
+    fs.writeFileSync(tmp, json);
+    fs.renameSync(tmp, DATA_FILE);
   }
 }
 
-let saveTimer = null;
+// Saves are batched: at most one write in flight, and changes made meanwhile go in the next one.
+let saveTimer = null, saving = null, dirty = false;
 function save() {
+  dirty = true;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    const tmp = DATA_FILE + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(state));
-    fs.renameSync(tmp, DATA_FILE);
-  }, 250);
+  saveTimer = setTimeout(flush, 250);
+}
+async function flush() {
+  clearTimeout(saveTimer);
+  if (saving) { await saving; if (!dirty) return; }
+  if (!dirty) return;
+  dirty = false;
+  saving = writeState()
+    .catch((e) => { dirty = true; console.error("Could not save tables:", e.message); saveTimer = setTimeout(flush, 2000); })
+    .finally(() => { saving = null; });
+  await saving;
 }
 
 function prune() {
@@ -318,6 +350,19 @@ wss.on("connection", (ws) => {
 setInterval(() => { for (const ws of wss.clients) if (ws.readyState === ws.OPEN) ws.ping(); }, 25000);
 setInterval(prune, 1000 * 60 * 60);
 
-load();
-prune();
-server.listen(PORT, () => console.log(`Buy-In Board running at http://localhost:${PORT}`));
+// Hosts like Render stop the server with SIGTERM on every deploy: save anything pending first.
+for (const sig of ["SIGTERM", "SIGINT"]) {
+  process.on(sig, async () => {
+    try { await flush(); } finally { process.exit(0); }
+  });
+}
+
+load()
+  .then(() => {
+    prune();
+    server.listen(PORT, () => console.log(`Buy-In Board running at http://localhost:${PORT} (tables saved to ${pool ? "Postgres" : DATA_FILE})`));
+  })
+  .catch((e) => {
+    console.error("Could not load saved tables:", e.message);
+    process.exit(1);
+  });

@@ -15,16 +15,24 @@ Open http://localhost:3000. To test from a phone on the same Wi-Fi, use your com
 
 ## Put it on the web
 
-The server is a single Node process (Node 18 or newer). It saves tables to `data/tables.json`, so whichever host you use needs a disk that's kept between restarts.
+The server is a single Node process (Node 18 or newer). Where it keeps tables:
 
-Example using [Render](https://render.com):
+- **With `DATABASE_URL` set**, tables are stored in that Postgres database. Use this on any host that wipes its disk on restart or redeploy, which includes Render's free plan.
+- **Without it**, tables go in `data/tables.json` (or in `DATA_DIR` if you set it). That's fine on your own computer, but on a free host every table is lost whenever the server restarts.
 
-1. Push this folder to a GitHub repository.
-2. In Render, create a new **Web Service** from that repository.
+### Render (free plan) with a free Neon database
+
+1. Create a free database at [neon.tech](https://neon.tech). Copy its **connection string**, which looks like `postgresql://user:password@ep-something.neon.tech/neondb?sslmode=require`.
+2. In Render, create a new **Web Service** from this GitHub repository.
 3. Set the build command to `npm install` and the start command to `npm start`.
-4. Add a **persistent disk** mounted at `/var/data`, and set the environment variable `DATA_DIR=/var/data`.
+4. Under **Environment**, add `DATABASE_URL` and paste the connection string as its value.
+5. Deploy. The log should say `tables saved to Postgres`.
 
-Render sets `PORT` for you. Other hosts that run a Node server and support WebSockets (Railway, Fly.io, a VPS) work the same way.
+The app creates its own database table the first time it runs. Render sets `PORT` for you.
+
+Free Render servers go to sleep after about 15 minutes without visitors. The first visit afterwards takes up to a minute to wake the server, but tables aren't lost because they're in the database.
+
+Other hosts that run a Node server and support WebSockets (Railway, Fly.io, a VPS) work the same way. Any Postgres database works, including Render's or Supabase's.
 
 Run only one copy of the server, because each running copy keeps its own list of tables. A table is deleted 30 days after its last change.
 
