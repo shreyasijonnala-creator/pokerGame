@@ -27,7 +27,7 @@ const TABLE_TTL_MS = 1000 * 60 * 60 * 24 * 30; // drop tables 30 days after thei
 /* ---------- storage ---------- */
 // state.tables[code] = { code, name, hostId, createdAt, updatedAt, ended, endedAt,
 //                        players: { [pid]: { name, joinedAt, seated, count } } }
-// state.people[pid]  = { hostOf: code|null, playerAt: code|null }
+// state.people[pid]  = { hostOf: code|null, playerAt: code|null, history: [finished game summaries] }
 let state = { tables: {}, people: {} };
 
 // With DATABASE_URL set, everything is kept in Postgres (one row holding the whole state), so it
@@ -90,7 +90,7 @@ function prune() {
   for (const [pid, p] of Object.entries(state.people)) {
     if (p.hostOf && !state.tables[p.hostOf]) p.hostOf = null;
     if (p.playerAt && !state.tables[p.playerAt]) p.playerAt = null;
-    if (!p.hostOf && !p.playerAt) delete state.people[pid];
+    if (!p.hostOf && !p.playerAt && !(p.history && p.history.length)) delete state.people[pid];
   }
   save();
 }
@@ -244,8 +244,14 @@ const handlers = {
     if (!t) return;
     t.ended = true;
     t.endedAt = Date.now();
+    archive(t);
     reply({ ok: true });
     touch(t);
+  },
+
+  history(pid, msg, reply) {
+    const p = state.people[pid];
+    reply({ ok: true, games: (p && p.history) || [] });
   },
 
   leave(pid, msg, reply) {
@@ -270,6 +276,27 @@ const handlers = {
     syncPerson(pid);
   },
 };
+
+// When a game ends, give the host and every player a summary for their Past games list.
+// Summaries are copies, so they outlive the table itself (which is pruned after 30 days).
+const HISTORY_MAX = 100;
+function archive(t) {
+  if (t.archived) return;
+  t.archived = true;
+  const players = Object.entries(t.players)
+    .map(([id, p]) => ({ id, name: p.name, count: p.count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const total = players.reduce((a, p) => a + p.count, 0);
+  const base = { code: t.code, name: t.name, createdAt: t.createdAt, endedAt: t.endedAt || t.updatedAt, buy: BUY, total, players };
+  const add = (pid, entry) => {
+    const me = person(pid);
+    me.history = [entry, ...(me.history || []).filter((g) => g.code !== t.code)].slice(0, HISTORY_MAX);
+  };
+  const hostSeat = t.players[t.hostId];
+  add(t.hostId, { ...base, role: "host", mine: hostSeat ? hostSeat.count : null });
+  for (const [id, p] of Object.entries(t.players)) if (id !== t.hostId) add(id, { ...base, role: "player", mine: p.count });
+  save();
+}
 
 function hostTable(pid, msg, reply) {
   const t = state.tables[String(msg.code || "").toUpperCase()];
@@ -359,6 +386,8 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
 
 load()
   .then(() => {
+    // games that ended before Past games existed still get their summaries
+    for (const t of Object.values(state.tables)) if (t.ended) archive(t);
     prune();
     server.listen(PORT, () => console.log(`Buy-In Board running at http://localhost:${PORT} (tables saved to ${pool ? "Postgres" : DATA_FILE})`));
   })

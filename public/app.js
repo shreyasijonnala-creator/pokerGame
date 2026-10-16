@@ -115,7 +115,101 @@ function pickView(force) {
   show("scrLoading");
 }
 
-function goHomeScreen() { show("scrHome"); renderResume(); }
+function goHomeScreen() {
+  show("scrHome"); renderResume();
+  if (homeTab === "history") loadHistory();
+}
+
+/* ---------- home tabs: Play / Past games ---------- */
+let homeTab = "play";
+try { if (sessionStorage.getItem("buyin-hometab") === "history") homeTab = "history"; } catch {}
+
+function setHomeTab(tab, load = true) {
+  homeTab = tab;
+  try { sessionStorage.setItem("buyin-hometab", tab); } catch {}
+  $("tabPlay").setAttribute("aria-selected", String(tab === "play"));
+  $("tabHistory").setAttribute("aria-selected", String(tab === "history"));
+  $("panePlay").hidden = tab !== "play";
+  $("paneHistory").hidden = tab !== "history";
+  if (tab === "history" && load) loadHistory();
+}
+
+async function loadHistory() {
+  if (!$("histList").children.length) $("histStatus").textContent = "Loading your games…";
+  const r = await request("history");
+  if (r.error) { $("histStatus").textContent = "Couldn't load your past games. " + r.error; return; }
+  $("histStatus").textContent = "";
+  renderHistory(r.games || []);
+}
+
+function fmtDate(ms) {
+  const d = new Date(ms);
+  if (isNaN(d)) return "";
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }) +
+    " · " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function stat(k, v, gold) {
+  const d = el("div"); d.append(el("span", "k", k), el("span", "v" + (gold ? " gold" : ""), v)); return d;
+}
+
+function renderHistory(games) {
+  const list = $("histList"); list.textContent = "";
+  $("histEmpty").hidden = games.length > 0;
+  $("histSummary").hidden = games.length === 0;
+  if (!games.length) return;
+
+  const hosted = games.filter((g) => g.role === "host").length;
+  const myBuys = games.reduce((a, g) => a + (Number(g.mine) || 0), 0);
+  const sum = $("histSummary"); sum.textContent = "";
+  [["Games", games.length], ["Hosted", hosted], ["Your buy-ins", money(myBuys * BUY)]].forEach(([k, v], i) => {
+    const s = el("div", "stat" + (i === 0 ? " pot" : "")); s.append(el("span", "k", k), el("span", "v", String(v))); sum.append(s);
+  });
+
+  for (const g of games) {
+    const buy = Number(g.buy) || BUY, total = Number(g.total) || 0;
+    const players = Array.isArray(g.players) ? g.players : [];
+    const card = el("article", "past");
+
+    const top = el("div", "past-top");
+    const left = el("div");
+    left.append(el("div", "past-name", g.name || "Untitled table"));
+    const meta = el("div", "past-meta", fmtDate(g.endedAt) + " · ");
+    meta.append(el("span", "code-sm", g.code));
+    left.append(meta);
+    top.append(left, el("span", "pill " + (g.role === "host" ? "host" : "player"), g.role === "host" ? "Hosted" : "Played"));
+    card.append(top);
+
+    const stats = el("div", "past-stats");
+    stats.append(stat("Pot", money(total * buy), true), stat("Buy-ins", String(total)), stat("Players", String(players.length)));
+    stats.append(stat("You", g.mine == null ? "Host" : money((Number(g.mine) || 0) * buy)));
+    card.append(stats);
+
+    if (players.length) {
+      const det = el("details");
+      det.append(el("summary", null, `Everyone's buy-ins (${players.length})`));
+      const ol = el("ol");
+      for (const p of players) {
+        const li = el("li", p.id === me ? "you" : "");
+        const c = el("span", "c");
+        const b = el("b", null, String(Number(p.count) || 0));
+        c.append(b, ` × $${buy} = ${money((Number(p.count) || 0) * buy)}`);
+        li.append(el("span", "n", p.name || "Player"), c);
+        ol.append(li);
+      }
+      det.append(ol);
+      card.append(det);
+    }
+    list.append(card);
+  }
+}
 
 // On the home screen, offer a way back to a game that's still going.
 function renderResume() {
@@ -273,6 +367,8 @@ $("helpClose").onclick = () => ($("help").hidden = true);
 $("help").onclick = (e) => { if (e.target === $("help")) $("help").hidden = true; };
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("help").hidden = true; });
 
+$("tabPlay").onclick = () => setHomeTab("play");
+$("tabHistory").onclick = () => setHomeTab("history");
 $("createBtn").onclick = createTable;
 $("joinBtn").onclick = () => { resetJoin(); $("codeIn").value = ""; $("homeErr").textContent = ""; show("scrJoin"); $("codeIn").focus(); };
 $("joinBack").onclick = () => { if (!$("nameForm").hidden) resetJoin(); else goHomeScreen(); };
@@ -313,4 +409,5 @@ $("overHome").onclick = async () => {
   pickView(true);
 };
 
+setHomeTab(homeTab, false); // the list loads once the home screen shows
 connect();

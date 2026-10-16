@@ -8,7 +8,7 @@
 <title>Buy-In Board</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23d9a441'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23241705' stroke-width='2' stroke-dasharray='4 3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Limelight&family=Barlow:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600..900;1,9..144,600..700&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
 /* Layout: one column card-room ledger on green felt; screens swap in place (home, host, player, game over). Single dark look by design. */
 :root {
@@ -24,9 +24,9 @@
   --danger: #e2735f;
   --live: #6fe0a0;
   --scrim: rgba(3, 12, 8, 0.72);
-  --display: "Limelight", "Rockwell", Georgia, serif;
-  --body: "Barlow", "Helvetica Neue", Arial, sans-serif;
-  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --body: "Outfit", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -51,7 +51,7 @@ button, input { font: inherit; color: inherit; }
 .help-btn { position: fixed; z-index: 30;
   top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
   width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--chip); background: var(--rail); color: var(--chip);
-  font-family: var(--display); font-size: 22px; cursor: pointer; display: grid; place-items: center; }
+  font-family: var(--display); font-weight: 800; font-size: 22px; cursor: pointer; display: grid; place-items: center; }
 
 header { display: flex; flex-direction: column; gap: 10px; padding-right: 52px; }
 .topline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -64,8 +64,8 @@ body { margin: 0; }
 [hidden] { display: none !important; }
 .dot.off { background: var(--danger); box-shadow: 0 0 0 3px rgba(226, 115, 95, 0.18); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 3px rgba(111, 224, 160, 0.18); }
-h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 38px); line-height: 1.1; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
-.title-in { font-family: var(--display); font-size: clamp(24px, 6vw, 36px); line-height: 1.15; width: 100%; background: transparent;
+h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; font-size: clamp(26px, 6vw, 38px); line-height: 1.1; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+.title-in { font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; font-size: clamp(24px, 6vw, 36px); line-height: 1.15; width: 100%; background: transparent;
   border: 1px solid transparent; border-radius: 8px; padding: 2px 8px; margin-left: -8px; }
 .title-in:hover { border-color: var(--line); }
 .title-in:focus { border-color: var(--chip); background: rgba(0,0,0,0.25); outline: none; }
@@ -74,7 +74,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
 #scrHome { gap: 24px; padding-top: 8px; }
 .hero { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
 .hero .eyebrow { color: var(--chip); }
-.logo { font-family: var(--display); font-weight: 400; margin: 0; line-height: 1; font-size: clamp(46px, 13vw, 80px);
+.logo { font-family: var(--display); font-weight: 900; font-variation-settings: "opsz" 144; letter-spacing: -0.025em; margin: 0; line-height: 1; font-size: clamp(46px, 13vw, 80px);
   background: linear-gradient(180deg, #fbe6a4 0%, var(--chip) 55%, #9c6a22 100%); -webkit-background-clip: text; background-clip: text;
   color: transparent; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45)); }
 .hero p { margin: 0; color: var(--ink-dim); font-size: 17px; line-height: 1.5; max-width: 40ch; }
@@ -123,6 +123,51 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
 .chip-stack span { display: block; height: 10px; margin-top: -4px; border-radius: 50%; background: var(--c);
   border: 2px dashed rgba(255, 255, 255, 0.75); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); }
 
+/* home tabs */
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.32);
+  border: 1px solid var(--line); max-width: 360px; width: 100%; margin: 0 auto; }
+.tab { min-height: 44px; border: 0; border-radius: 999px; background: transparent; color: var(--ink-dim); font-weight: 600; font-size: 15px;
+  letter-spacing: 0.02em; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.tab[aria-selected="true"] { background: var(--chip); color: var(--chip-ink); box-shadow: 0 2px 0 #7e5716; }
+.tab:not([aria-selected="true"]):hover { color: var(--ink); }
+.pane { display: flex; flex-direction: column; gap: 24px; }
+
+/* past games */
+.hist-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+.hist-list { display: flex; flex-direction: column; gap: 12px; }
+.past { background: var(--rail); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.past-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.past-name { font-family: var(--display); font-weight: 700; font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
+.past-meta { font-size: 13px; color: var(--ink-dim); margin-top: 4px; }
+.past-meta .code-sm { font-family: var(--mono); letter-spacing: 0.12em; color: var(--ink); }
+.pill { flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; }
+.pill.host { background: var(--chip); color: var(--chip-ink); }
+.pill.player { border: 1px solid var(--chip); color: var(--chip); }
+.past-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.past-stats div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.past-stats .k { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim); }
+.past-stats .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 700; }
+.past-stats .v.gold { color: var(--chip); }
+.past details { border-top: 1px dashed var(--line); padding-top: 10px; }
+.past summary { cursor: pointer; color: var(--chip); font-weight: 600; font-size: 14px; list-style: none; display: flex; align-items: center; gap: 6px; min-height: 32px; }
+.past summary::-webkit-details-marker { display: none; }
+.past summary::before { content: "▸"; transition: transform 0.15s; }
+.past details[open] summary::before { transform: rotate(90deg); }
+.past ol { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; }
+.past li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.past li:last-child { border-bottom: 0; }
+.past li .n { overflow-wrap: anywhere; min-width: 0; }
+.past li .c { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 14px; color: var(--ink-dim); white-space: nowrap; }
+.past li .c b { color: var(--ink); }
+.past li.you .n::after { content: "You"; margin-left: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--chip); }
+.hist-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 36px 16px;
+  border: 1px dashed var(--line); border-radius: 16px; background: var(--row); }
+.hist-empty h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 22px; }
+.hist-empty p { margin: 0; color: var(--ink-dim); line-height: 1.5; max-width: 40ch; }
+.hist-chips { display: flex; gap: 6px; margin-bottom: 4px; }
+.hist-chips span { width: 30px; height: 30px; border-radius: 50%; border: 3px dashed rgba(255, 255, 255, 0.7); }
+.hist-chips span:nth-child(1) { background: #b3202f; } .hist-chips span:nth-child(2) { background: var(--chip); } .hist-chips span:nth-child(3) { background: #1f4fa8; }
+
 .resume { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px; border-radius: 14px;
   background: var(--rail); border: 1px dashed var(--chip); }
 .resume .row { justify-content: center; }
@@ -134,7 +179,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
 .play .ico { flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; }
 .play .ico svg { width: 26px; height: 26px; }
 .play .txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.play .big { font-family: var(--display); font-size: 25px; line-height: 1.05; }
+.play .big { font-family: var(--display); font-weight: 800; font-size: 25px; letter-spacing: -0.01em; line-height: 1.05; }
 .play .sm { font-size: 14px; line-height: 1.4; }
 .play.create { border: 0; color: var(--chip-ink); background: linear-gradient(180deg, #f2c766 0%, var(--chip) 60%, #c08a2c 100%);
   box-shadow: 0 6px 0 #7e5716, 0 14px 26px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
@@ -202,7 +247,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
 .ro-total.zero { color: var(--ink-dim); }
 
 .panel { background: var(--rail); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.panel h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 22px; }
+.panel h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 22px; }
 .panel p { margin: 0; color: var(--ink-dim); line-height: 1.5; max-width: 60ch; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); }
@@ -224,7 +269,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
   padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 .modal { width: min(560px, 100%); max-height: 100%; overflow-y: auto; background: var(--rail); border: 1px solid var(--chip); border-radius: 16px;
   padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-.modal h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 24px; }
+.modal h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 24px; }
 .modal h3 { margin: 0; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--chip); }
 .modal ol, .modal ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; line-height: 1.45; }
 .modal p { margin: 0; color: var(--ink-dim); line-height: 1.5; }
@@ -234,6 +279,9 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
 @media (max-width: 460px) {
   .choices { grid-template-columns: 1fr; }
   .steps { grid-template-columns: 1fr; }
+  .past-stats { grid-template-columns: repeat(2, 1fr); row-gap: 12px; }
+  .hist-summary { grid-template-columns: 1fr 1fr; }
+  .hist-summary .stat:first-child { grid-column: 1 / -1; }
   .felt-table { height: 230px; border-width: 9px; }
   .deck { transform: scale(0.82); }
   .chip-stack.l { left: 7%; } .chip-stack.r { right: 7%; }
@@ -269,6 +317,12 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
       <p>Every $20 buy-in, tracked live. The host deals the buy-ins, everyone follows the pot from their phone.</p>
     </div>
 
+    <div class="tabs" role="tablist" aria-label="Home">
+      <button class="tab" role="tab" id="tabPlay" aria-controls="panePlay" aria-selected="true">Play</button>
+      <button class="tab" role="tab" id="tabHistory" aria-controls="paneHistory" aria-selected="false">Past games</button>
+    </div>
+
+    <div class="pane" id="panePlay" role="tabpanel" aria-labelledby="tabPlay">
     <div class="felt-table" aria-hidden="true">
       <div class="chip-stack l" style="--c:#b3202f"><span></span><span></span><span></span><span></span><span></span></div>
       <div class="chip-stack r" style="--c:#1f4fa8"><span></span><span></span><span></span><span></span></div>
@@ -311,6 +365,18 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
       <li><b>3</b>Host taps +$20 per buy-in</li>
     </ol>
     <p class="err" id="homeErr"></p>
+    </div>
+
+    <div class="pane" id="paneHistory" role="tabpanel" aria-labelledby="tabHistory" hidden>
+      <div class="hist-summary" id="histSummary" hidden></div>
+      <div class="hist-list" id="histList"></div>
+      <div class="hist-empty" id="histEmpty" hidden>
+        <div class="hist-chips" aria-hidden="true"><span></span><span></span><span></span></div>
+        <h2>No finished games yet</h2>
+        <p>Games you host or play in show up here once the host taps <b>End game</b>, with the final pot and everyone's buy-ins.</p>
+      </div>
+      <p class="foot" id="histStatus"></p>
+    </div>
   </section>
 
   <!-- join: step 1 code, step 2 name -->
@@ -413,6 +479,12 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
       <li>Watch your buy-ins and the pot update live. Only the host can add buy-ins.</li>
       <li>Heading out early? Tap <b>Leave game</b>. Your buy-ins stay on the host's books.</li>
     </ol>
+    <h3>Past games</h3>
+    <ul>
+      <li>When the host taps <b>End game</b>, the game is saved to <b>Past games</b> on the home screen, for the host and for every player.</li>
+      <li>Each one shows the date, the final pot and everyone's buy-ins.</li>
+      <li>Past games are tied to this browser on this device.</li>
+    </ul>
     <h3>The math</h3>
     <ul>
       <li>Player total = buy-ins × $20</li>
