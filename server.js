@@ -217,6 +217,34 @@ const handlers = {
     reply({ ok: true });
   },
 
+  // The host seats someone by name, for players who aren't following on their own phone.
+  // They get a made-up id that no browser can sign in as.
+  addPlayer(pid, msg, reply) {
+    const t = hostTable(pid, msg, reply);
+    if (!t) return;
+    const name = cleanName(msg.name, 24);
+    if (!name) return reply({ error: "Enter the player's name." });
+    const seated = Object.values(t.players).filter((p) => p.seated);
+    if (seated.length >= SEATS) return reply({ error: "The table is full. All 15 seats are taken." });
+    if (seated.some((p) => p.name.toLowerCase() === name.toLowerCase())) return reply({ error: `${name} is already at the table.` });
+    t.players["g" + crypto.randomBytes(8).toString("hex")] = { name, joinedAt: Date.now(), seated: true, count: 0, guest: true };
+    reply({ ok: true });
+    touch(t);
+  },
+
+  // The host takes someone off the table entirely, buy-ins included (for a typo or a mistaken add).
+  removePlayer(pid, msg, reply) {
+    const t = hostTable(pid, msg, reply);
+    if (!t) return;
+    const id = String(msg.player || "");
+    if (!Object.prototype.hasOwnProperty.call(t.players, id)) return reply({ error: "That player isn't at this table." });
+    delete t.players[id];
+    const them = state.people[id];
+    if (them && them.playerAt === t.code) { them.playerAt = null; syncPerson(id); }
+    reply({ ok: true });
+    touch(t);
+  },
+
   buyin(pid, msg, reply) {
     const t = hostTable(pid, msg, reply);
     if (!t) return;
@@ -305,7 +333,7 @@ function archive(t) {
   };
   const hostSeat = t.players[t.hostId];
   add(t.hostId, { ...base, role: "host", mine: hostSeat ? hostSeat.count : null });
-  for (const [id, p] of Object.entries(t.players)) if (id !== t.hostId) add(id, { ...base, role: "player", mine: p.count });
+  for (const [id, p] of Object.entries(t.players)) if (id !== t.hostId && !p.guest) add(id, { ...base, role: "player", mine: p.count });
   save();
 }
 

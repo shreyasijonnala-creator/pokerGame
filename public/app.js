@@ -21,6 +21,7 @@ let me = null, role = null, code = null, table = null;
 let sess = { host: null, player: null }; // the table I host and the one I sit at, from the server
 const tables = {};                        // latest state of each of those tables
 let joinTarget = null;
+let leaving = false; // set while I leave a table myself, so it isn't mistaken for being removed
 
 // Which screen this tab shows: "host", "player" or "home". Kept per tab, so one
 // browser can host in one tab and sit at the table in another.
@@ -85,7 +86,12 @@ function onSession(s) {
     if (tried !== s.build) { location.reload(); return; } // only once per version, so it can't loop
   }
   me = s.you;
+  const wasSeat = sess.player;
   sess = { host: s.host || null, player: s.player || null };
+  // my seat vanished without me leaving and without the game ending: the host removed me
+  if (wasSeat && !sess.player && !leaving && sess.host !== wasSeat && !(tables[wasSeat] && tables[wasSeat].ended))
+    toast(`The host removed you from table ${wasSeat}. Ask them if that was a mistake.`);
+  leaving = false;
   pickView(!onSession.seen);
   onSession.seen = true;
 }
@@ -263,7 +269,11 @@ function seatRow(i, p, isHost) {
       add.className = "add"; add.textContent = "+ Add Buy-In";
       add.setAttribute("aria-label", `Add a $20 buy-in for ${p.name}`);
       add.onclick = () => bump(p, 1);
-      acts.append(minus, add);
+      const rm = document.createElement("button");
+      rm.className = "remove"; rm.textContent = "×";
+      rm.setAttribute("aria-label", `Remove ${p.name} from the table`);
+      rm.onclick = () => removePlayer(p);
+      acts.append(rm, minus, add);
     } else {
       const t = document.createElement("span"); t.className = "ro-total" + (p.count ? "" : " zero");
       t.textContent = money(p.count * BUY); acts.append(t);
@@ -288,8 +298,9 @@ function render() {
   $("codeShow").textContent = table.code;
 
   $("endBtn").hidden = !isHost; $("leaveBtn").hidden = isHost;
+  $("addForm").hidden = !isHost || table.seated.length >= SEATS;
   $("tableFoot").textContent = isHost
-    ? "Players add themselves with the code. Tap + Add Buy-In for each $20, and − to fix a mistake."
+    ? "Players add themselves with the code, or you can add them by name. Tap + Add Buy-In for each $20, and − to fix a mistake."
     : "Only the host can add buy-ins. Totals update live.";
 
   const mine = table.seated.find((p) => p.id === me);
@@ -331,6 +342,16 @@ async function bump(p, d) {
   if (next === p.count) return;
   p.count = next; render(); // show it right away; the server's broadcast confirms
   const r = await request("buyin", { code, player: p.id, delta: d });
+  if (r.error) toast(r.error);
+}
+
+async function removePlayer(p) {
+  if (role !== "host" || !table) return;
+  const text = p.count
+    ? `${p.name} comes off the table, and their ${p.count} buy-in${p.count === 1 ? "" : "s"} (${money(p.count * BUY)}) come off the game total.`
+    : `${p.name} comes off the table and their seat opens up.`;
+  if (!(await ask(`Remove ${p.name}?`, text, "Remove"))) return;
+  const r = await request("removePlayer", { code, player: p.id });
   if (r.error) toast(r.error);
 }
 
@@ -444,6 +465,20 @@ $("renameForm").onsubmit = async (e) => {
   if (r.error) toast(r.error);
 };
 
+// Host seats a player by name (someone not following on their own phone).
+$("addForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const name = $("addIn").value.trim().replace(/\s+/g, " ").slice(0, 24);
+  $("addErr").textContent = "";
+  if (!name) { $("addErr").textContent = "Enter the player's name."; return; }
+  if (!table) return;
+  $("addGo").disabled = true;
+  const r = await request("addPlayer", { code, name });
+  $("addGo").disabled = false;
+  if (r.error) { $("addErr").textContent = r.error; return; }
+  $("addIn").value = ""; $("addIn").focus();
+};
+
 $("copyCode").onclick = async () => {
   try { await navigator.clipboard.writeText(code); $("copyCode").textContent = "Copied"; setTimeout(() => ($("copyCode").textContent = "Copy code"), 1500); }
   catch { const r = document.createRange(); r.selectNodeContents($("codeShow")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
@@ -456,8 +491,9 @@ $("endBtn").onclick = async () => {
 };
 $("leaveBtn").onclick = async () => {
   if (!(await ask("Leave this game?", "You'll go back to the home screen. Your buy-ins stay on the host's books.", "Leave game"))) return;
+  leaving = true;
   const r = await request("leave");
-  if (r.error) toast(r.error);
+  if (r.error) { leaving = false; toast(r.error); }
 };
 $("overHome").onclick = async () => {
   setView("home");

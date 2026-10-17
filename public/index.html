@@ -128,6 +128,8 @@ h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; fon
 .icon-btn:hover { border-color: var(--chip); }
 .icon-btn svg { width: 20px; height: 20px; }
 .rename { display: flex; flex-direction: column; gap: 8px; }
+.add-player { display: flex; flex-direction: column; gap: 8px; }
+.add-player .err:empty { display: none; }
 
 /* home tabs */
 .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.32);
@@ -248,6 +250,8 @@ h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; fon
 .acts { display: flex; align-items: center; gap: 8px; }
 .minus { width: 44px; height: 48px; border-radius: 10px; border: 1px solid var(--line); background: transparent; font-size: 22px; cursor: pointer; }
 .minus:disabled { opacity: 0.3; cursor: default; }
+.remove { width: 44px; height: 48px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--ink-dim); font-size: 20px; cursor: pointer; }
+.remove:hover, .remove:focus-visible { border-color: var(--danger); color: var(--danger); }
 .add { min-height: 48px; padding: 0 16px; border-radius: 999px; border: 0; cursor: pointer; font-weight: 700; font-size: 16px;
   background: var(--chip); color: var(--chip-ink); box-shadow: inset 0 0 0 3px rgba(255,255,255,0.35), inset 0 0 0 6px var(--chip);
   white-space: nowrap; transition: transform 0.08s; }
@@ -262,6 +266,7 @@ h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; fon
 .field label { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .text-in { flex: 1 1 200px; min-width: 0; background: rgba(0,0,0,0.3); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 52px; font-size: 18px; }
+.text-in::placeholder { color: var(--ink-dim); opacity: 0.7; }
 .text-in.code-in { font-family: var(--mono); letter-spacing: 0.3em; text-transform: uppercase; font-size: 24px; }
 .btn { min-height: 48px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: transparent; cursor: pointer; font-weight: 600; }
 .btn.primary { background: var(--chip); color: var(--chip-ink); border-color: var(--chip); }
@@ -468,6 +473,15 @@ h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; fon
       <div class="stat"><span class="k">Players</span><span class="v" id="sumPlayers">0 / 15</span></div>
     </section>
 
+    <form class="add-player" id="addForm" hidden>
+      <label class="eyebrow" for="addIn">Add a player</label>
+      <div class="row">
+        <input class="text-in" id="addIn" maxlength="24" autocomplete="off" placeholder="Their name">
+        <button class="btn primary" type="submit" id="addGo">Add player</button>
+      </div>
+      <p class="err" id="addErr"></p>
+    </form>
+
     <section class="seats" id="seats" aria-label="Seats"></section>
     <section class="seats" id="leftSeats" hidden></section>
 
@@ -502,6 +516,8 @@ h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; fon
       <li>Tap <b>Create a table</b>, name your game, and tap <b>Open the table</b>. You get a 5-character code.</li>
       <li>Tap the pencil next to the game name to rename it any time. Read out or copy the code for your players.</li>
       <li>Players join from their own phones. They appear in the seats as they join (15 seats max).</li>
+      <li>Someone without a phone? Type their name under <b>Add a player</b> and tap <b>Add player</b> to give them a seat.</li>
+      <li>Added someone by mistake? Tap <b>×</b> on their seat to remove them and any buy-ins they have.</li>
       <li>Tap <b>+ Add Buy-In</b> each time a player buys in. Each tap adds $20.</li>
       <li>Tapped by mistake? Tap <b>−</b> to take one buy-in back.</li>
       <li>Playing too? Tap <b>← Home</b>, then <b>Join a table</b> with your own code. The game keeps running, and <b>Return to your table</b> on the home screen takes you back.</li>

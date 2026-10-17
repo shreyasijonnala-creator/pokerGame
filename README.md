@@ -1,6 +1,6 @@
 # Buy-In Board
 
-A live $20 buy-in tracker for home poker games. Anyone can create a table and get a 5-character code. Players join with the code and their name. Only the host who created the table can add buy-ins, rename the table or end the game. Everyone at the table sees the totals update live.
+A live $20 buy-in tracker for home poker games. Anyone can create a table and get a 5-character code. Players join with the code and their name, or the host can add them by name. Only the host who created the table can add buy-ins, rename the table or end the game. Everyone at the table sees the totals update live.
 
 There are no accounts. Each browser gets a random secret key that's saved in that browser, and the server uses it to tell who the host is. If you clear your site data, or open the page in a different browser, you won't be recognized as the host anymore.
 
