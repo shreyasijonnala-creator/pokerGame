@@ -166,6 +166,9 @@ h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; fon
 .past li .c { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 14px; color: var(--ink-dim); white-space: nowrap; }
 .past li .c b { color: var(--ink); }
 .past li.you .n::after { content: "You"; margin-left: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--chip); }
+.past-foot { display: flex; justify-content: flex-end; }
+.btn.small { min-height: 36px; padding: 0 14px; font-size: 14px; }
+.hist-clear { display: flex; justify-content: center; }
 .hist-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 36px 16px;
   border: 1px dashed var(--line); border-radius: 16px; background: var(--row); }
 .hist-empty h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 22px; }
@@ -373,6 +376,7 @@ h1 { font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; fon
     <div class="pane" id="paneHistory" role="tabpanel" aria-labelledby="tabHistory" hidden>
       <div class="hist-summary" id="histSummary" hidden></div>
       <div class="hist-list" id="histList"></div>
+      <div class="hist-clear" id="histClearRow" hidden><button class="btn danger small" id="histClearAll">Clear all past games</button></div>
       <div class="hist-empty" id="histEmpty" hidden>
         <div class="hist-chips" aria-hidden="true"><span></span><span></span><span></span></div>
         <h2>No finished games yet</h2>

@@ -254,6 +254,17 @@ const handlers = {
     reply({ ok: true, games: (p && p.history) || [] });
   },
 
+  // Clears one finished game (or all of them) from this person's own Past games list only.
+  forget(pid, msg, reply) {
+    const p = state.people[pid];
+    if (p && p.history) {
+      const code = String(msg.code || "").toUpperCase();
+      p.history = msg.all === true ? [] : p.history.filter((g) => g.code !== code);
+      save();
+    }
+    reply({ ok: true, games: (p && p.history) || [] });
+  },
+
   leave(pid, msg, reply) {
     const me = person(pid);
     if (me.playerAt) leaveTable(pid, me.playerAt);

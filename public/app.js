@@ -164,6 +164,7 @@ function renderHistory(games) {
   const list = $("histList"); list.textContent = "";
   $("histEmpty").hidden = games.length > 0;
   $("histSummary").hidden = games.length === 0;
+  $("histClearRow").hidden = games.length < 2;
   if (!games.length) return;
 
   const hosted = games.filter((g) => g.role === "host").length;
@@ -207,8 +208,23 @@ function renderHistory(games) {
       det.append(ol);
       card.append(det);
     }
+
+    const foot = el("div", "past-foot");
+    const clear = el("button", "btn danger small", "Clear game");
+    clear.setAttribute("aria-label", `Clear ${g.name || "this game"} from your past games`);
+    clear.onclick = () => forgetGames({ code: g.code }, "Clear this game?",
+      `"${g.name || "Untitled table"}" will be removed from your past games. It stays in everyone else's.`, "Clear game");
+    foot.append(clear);
+    card.append(foot);
     list.append(card);
   }
+}
+
+async function forgetGames(what, title, text, yes) {
+  if (!(await ask(title, text, yes))) return;
+  const r = await request("forget", what);
+  if (r.error) { toast(r.error); return; }
+  renderHistory(r.games || []);
 }
 
 // On the home screen, offer a way back to a game that's still going.
@@ -397,6 +413,8 @@ $("createForm").onsubmit = (e) => {
 $("createBack").onclick = goHomeScreen;
 $("tabPlay").onclick = () => setHomeTab("play");
 $("tabHistory").onclick = () => setHomeTab("history");
+$("histClearAll").onclick = () => forgetGames({ all: true }, "Clear all past games?",
+  "Every game will be removed from your past games. Other players keep their own copies.", "Clear all");
 $("createBtn").onclick = () => { const h = sess.host && tables[sess.host]; if (h && !h.ended) createTable(); else openCreate(); };
 $("joinBtn").onclick = () => { resetJoin(); $("codeIn").value = ""; $("homeErr").textContent = ""; show("scrJoin"); $("codeIn").focus(); };
 $("joinBack").onclick = () => { if (!$("nameForm").hidden) resetJoin(); else goHomeScreen(); };
